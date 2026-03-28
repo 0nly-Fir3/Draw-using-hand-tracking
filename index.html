@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HandDraw Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#09090d;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:#fff}
+#wrap{width:100%;height:100%;display:flex;justify-content:center;align-items:center}
+canvas{display:block;border-radius:16px;box-shadow:0 0 80px rgba(0,0,0,.95)}
+/* HUD */
+#hud{position:fixed;top:15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(6,6,10,.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.08);padding:7px 18px;border-radius:999px;z-index:20;pointer-events:none}
+.hlbl{font-size:10px;color:#333;letter-spacing:.5px;text-transform:uppercase}
+.badge{padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.8px;transition:all .2s}
+.bi{background:rgba(255,255,255,.07);color:#444}
+.bd{background:rgba(80,220,130,.17);color:#50dc82;border:1px solid rgba(80,220,130,.3)}
+.be{background:rgba(255,80,80,.17);color:#ff5a5a;border:1px solid rgba(255,80,80,.3)}
+.bg{background:rgba(240,165,40,.17);color:#f0a828;border:1px solid rgba(240,165,40,.3)}
+#hcnt,#repind{font-size:11px}
+#hcnt{color:#2a2a35}
+#repind{color:#f0a828;display:none}
+#repind.on{display:block}
+/* Palette */
+#pal{position:fixed;left:13px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;background:rgba(6,6,10,.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.07);padding:10px 9px;border-radius:18px;z-index:20}
+.sw{width:25px;height:25px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s}
+.sw:hover{transform:scale(1.25)}
+.sw.ac{border-color:#fff;transform:scale(1.1)}
+/* Sidebar */
+#bar{position:fixed;right:13px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;background:rgba(6,6,10,.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.07);padding:10px 9px;border-radius:18px;z-index:20;align-items:center;min-width:140px}
+.slbl{font-size:9px;color:#2a2a35;text-align:center;letter-spacing:.4px;text-transform:uppercase;width:100%}
+.sb{width:40px;height:32px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);color:#777;cursor:pointer;font-size:11px;font-weight:600;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.sb:hover{background:rgba(255,255,255,.13);color:#fff}
+.sb.on{background:rgba(255,255,255,.17);border-color:rgba(255,255,255,.3);color:#fff}
+.row{display:flex;gap:4px}
+.div{width:26px;height:1px;background:rgba(255,255,255,.07);margin:2px 0}
+.lb{width:20px;height:20px;border-radius:5px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#444;cursor:pointer;font-size:9px;font-weight:700;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.lb:hover{background:rgba(255,255,255,.11)}
+.lb.ac{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.32);color:#fff}
+/* Legend */
+#leg{position:fixed;bottom:13px;left:50%;transform:translateX(-50%);display:flex;gap:16px;background:rgba(6,6,10,.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.07);padding:7px 18px;border-radius:12px;z-index:20;pointer-events:none;flex-wrap:wrap;justify-content:center}
+.lg{font-size:10px;color:#2e2e38}
+/* Loading */
+#load{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#09090d;z-index:200;gap:13px;transition:opacity .6s}
+#load.gone{opacity:0;pointer-events:none}
+.spin{width:30px;height:30px;border:2.5px solid rgba(255,255,255,.07);border-top-color:#50dc82;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#ltxt{font-size:12px;color:#3a3a45}
+#stab{width:112px;accent-color:#fff;display:block}
+#wm{position:fixed;bottom:5px;right:10px;font-size:9px;color:rgba(255,255,255,0.07);pointer-events:none;z-index:5;user-select:none;letter-spacing:.3px}
+#fileWarn{position:fixed;inset:0;background:#09090d;z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px;text-align:center}
+#fileWarn.show{display:flex}
+.fw-icon{font-size:40px}
+.fw-title{font-size:17px;font-weight:700;color:#f0a828}
+.fw-sub{font-size:12px;color:#3a3a45;max-width:420px;line-height:1.7}
+.fw-cmd{background:#13131a;border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:10px 18px;font-family:monospace;font-size:12px;color:#50dc82;user-select:all;cursor:text;letter-spacing:.3px}
+.fw-note{font-size:10px;color:#272730;max-width:400px;line-height:1.6}
+.fw-btn{padding:8px 22px;border-radius:999px;background:rgba(80,220,130,.15);border:1px solid rgba(80,220,130,.3);color:#50dc82;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .15s}
+.fw-btn:hover{background:rgba(80,220,130,.28)}
+</style>
+</head>
+<body>
+
+<div id="load"><div class="spin"></div><div id="ltxt">Loading MediaPipe…</div></div>
+<div id="wrap"><canvas id="cv" role="img" aria-label="Hand-drawn drawing canvas"></canvas></div>
+
+<div id="hud">
+  <span class="hlbl">mode</span>
+  <span id="badge" class="badge bi">IDLE</span>
+  <span id="hcnt">no hand</span>
+  <span id="repind">⏵ replaying…</span>
+</div>
+
+<div id="pal"></div>
+
+<div id="bar">
+  <div class="slbl">layer</div>
+  <div class="row">
+    <div class="lb ac" id="lb0" onclick="setLyr(0)">1</div>
+    <div class="lb" id="lb1" onclick="setLyr(1)">2</div>
+    <div class="lb" id="lb2" onclick="setLyr(2)">3</div>
+  </div>
+  <div class="row">
+    <div class="sb on" id="lyrVis" onclick="toggleActiveLayerVis()" title="Hide/show active layer">👁</div>
+    <div class="sb on" id="lyrLock" onclick="toggleActiveLayerLock()" title="Lock/unlock active layer">🔓</div>
+  </div>
+  <div class="div"></div>
+  <div class="slbl">brush</div>
+  <div class="row">
+    <div class="sb on" id="brInk" onclick="setBrush('ink')">Ink</div>
+    <div class="sb" id="brMarker" onclick="setBrush('marker')">Mk</div>
+  </div>
+  <div class="row">
+    <div class="sb" id="brGlow" onclick="setBrush('glow')">Glow</div>
+    <div class="sb" id="shapeBtn" onclick="toggleShapeAssist()" title="Shape assist">◧</div>
+  </div>
+  <div class="div"></div>
+  <div class="slbl">size</div>
+  <div class="row">
+    <div class="sb on" id="sz4" onclick="setSz(4,'sz4')">S</div>
+    <div class="sb" id="sz8" onclick="setSz(8,'sz8')">M</div>
+  </div>
+  <div class="row">
+    <div class="sb" id="sz14" onclick="setSz(14,'sz14')">L</div>
+    <div class="sb" id="sz22" onclick="setSz(22,'sz22')">XL</div>
+  </div>
+  <div class="div"></div>
+  <div class="slbl">smooth</div>
+  <input id="stab" type="range" min="0" max="5" step="1" value="2">
+  <div class="div"></div>
+  <div class="row">
+    <div class="sb" onclick="undo()" title="Undo">↩</div>
+    <div class="sb" onclick="redo()" title="Redo">↪</div>
+    <div class="sb" onclick="clearAll()" title="Clear all">✕</div>
+  </div>
+  <div class="row">
+    <div class="sb" onclick="saveState()" title="Save">💾</div>
+    <div class="sb" onclick="loadState()" title="Load">⤓</div>
+    <div class="sb" onclick="savePNG()" title="Export PNG">🖼</div>
+  </div>
+  <div class="row">
+    <div class="sb" id="recBtn" onclick="toggleRecording()" title="Record">⏺</div>
+    <div class="sb" onclick="doReplay()" title="Replay">⏵</div>
+    <div class="sb on" id="bgbtn" onclick="toggleBg()" title="Camera">📷</div>
+    <div class="sb on" id="touchBtn" onclick="toggleTouchMode()" title="Touch fallback">☝</div>
+  </div>
+</div>
+
+<div id="wm">© 2026 Mustafa Faham</div>
+
+<div id="leg">
+  <span class="lg">☝️ Index = Draw</span>
+  <span class="lg">✌️ Two fingers = Erase</span>
+  <span class="lg">🤌 Pinch = Grab</span>
+  <span class="lg">🤏🤏 Both pinch = Scale/Rotate</span>
+  <span class="lg">✊ Hold fist = Undo</span>
+  <span class="lg">◧ Shape assist: line · circle · triangle · rect</span>
+</div>
+
+<video id="vid" autoplay muted playsinline style="display:none"></video>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<script>
+
+const cv = document.getElementById('cv')
+const ctx = cv.getContext('2d')
+const vid = document.getElementById('vid')
+const badgeEl = document.getElementById('badge')
+const hcntEl = document.getElementById('hcnt')
+const repindEl = document.getElementById('repind')
+const loadEl = document.getElementById('load')
+const ltxtEl = document.getElementById('ltxt')
+const stabEl = document.getElementById('stab')
+const bgBtn = document.getElementById('bgbtn')
+const recBtn = document.getElementById('recBtn')
+const touchBtn = document.getElementById('touchBtn')
+const lyrVisBtn = document.getElementById('lyrVis')
+const lyrLockBtn = document.getElementById('lyrLock')
+const shapeBtn = document.getElementById('shapeBtn')
+const brushBtns = { ink: document.getElementById('brInk'), marker: document.getElementById('brMarker'), glow: document.getElementById('brGlow') }
+let W = 0, H = 0
+let cameraReady = false
+let touchMode = false
+let currentBrush = 'ink'
+let smoothPasses = 2
+let shapeAssist = true
+let showBg = true
+let activeLayer = 0
+let curStroke = null
+let idCtr = 0
+let mode = 'idle'
+let prevMode = 'idle'
+let fistT = null
+let grabbing = false
+let grabCenter = null
+let grabbedIds = new Set()
+let grabOffsets = new Map()
+let twoActive = false
+let twoInitDist = 0
+let twoInitAngle = 0
+let twoSnaps = new Map()
+let particles = []
+let trail = []
+let erasePos = null
+let repMode = false
+let repSaved = null
+let repStart = 0
+let repAll = []
+let redoStack = []
+let recorder = null
+let recChunks = []
+let recStream = null
+let recUrl = null
+let saveTimer = null
+let latestLm0 = null
+let latestLm1 = null
+let latestCount = 0
+let busy = false
+let cameraLoopRunning = false
+let lastSendAt = 0
+let sendTimeoutMs = 1200
+const PALETTE = ['#ffffff','#f94c4c','#ff9c20','#ffe040','#4fe89a','#00e5ff','#5aafff','#b060ff','#ff5cba','#111111']
+let curColor = '#ffffff'
+let brushSz = 4
+const SMOOTH_N = 5
+const lmHist = [[], []]
+const layers = [{ strokes: [], v: true, locked: false }, { strokes: [], v: true, locked: false }, { strokes: [], v: true, locked: false }]
+const BADGE_CLASS = { idle: 'bi', draw: 'bd', erase: 'be', grab: 'bg', locked: 'be', touch: 'bg' }
+const CONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]]
+const TIPS = new Set([4,8,12,16,20])
+const OWNER = 'Mustafa Faham | HandDraw Pro | 2026'
+
+document.getElementById('wm').textContent = '© 2026 Mustafa Faham'
+
+function resize() {
+  const mw = window.innerWidth - 118, mh = window.innerHeight - 56
+  const newW = mw / (4/3) <= mh ? Math.floor(mw) : Math.floor(mh * 4 / 3)
+  const newH = mw / (4/3) <= mh ? Math.floor(mw * 3 / 4) : Math.floor(mh)
+  if ((newW !== W || newH !== H) && W > 0 && H > 0) {
+    const sx = newW / W, sy = newH / H
+    for (const layer of layers) {
+      for (const s of layer.strokes) {
+        for (const p of s.pts) { p.x *= sx; p.y *= sy }
+      }
+    }
+    if (curStroke) for (const p of curStroke.pts) { p.x *= sx; p.y *= sy }
+  }
+  W = newW; H = newH
+  cv.width = W; cv.height = H
+}
+resize()
+window.addEventListener('resize', resize)
+window.addEventListener('beforeunload', () => {
+  try { saveState(true) } catch (e) {}
+  if (recUrl) URL.revokeObjectURL(recUrl)
+})
+
+PALETTE.forEach(c => {
+  const s = document.createElement('div')
+  s.className = 'sw' + (c === curColor ? ' ac' : '')
+  s.style.background = c
+  s.dataset.col = c
+  s.onclick = () => {
+    curColor = c
+    document.querySelectorAll('.sw').forEach(x => x.classList.remove('ac'))
+    s.classList.add('ac')
+  }
+  document.getElementById('pal').appendChild(s)
+})
+
+function setBadge() {
+  badgeEl.className = 'badge ' + (BADGE_CLASS[mode] || 'bi')
+  badgeEl.textContent = mode.toUpperCase()
+}
+
+function setBrush(name) {
+  currentBrush = name
+  Object.entries(brushBtns).forEach(([k, el]) => el.classList.toggle('on', k === name))
+  queueSave()
+}
+
+function setSz(n, id) {
+  brushSz = n
+  document.querySelectorAll('[id^=sz]').forEach(b => b.classList.remove('on'))
+  document.getElementById(id).classList.add('on')
+  queueSave()
+}
+
+function toggleBg() {
+  showBg = !showBg
+  bgBtn.classList.toggle('on', showBg)
+  queueSave()
+}
+
+function toggleTouchMode() {
+  touchMode = !touchMode
+  touchBtn.classList.toggle('on', touchMode)
+  if (touchMode) {
+    mode = 'touch'
+    setBadge()
+  } else {
+    finalize(true)
+    if (!latestCount) {
+      mode = 'idle'
+      setBadge()
+    }
+  }
+}
+
+function toggleShapeAssist() {
+  shapeAssist = !shapeAssist
+  shapeBtn.classList.toggle('on', shapeAssist)
+  queueSave()
+}
+
+function setLyr(n) {
+  activeLayer = n
+  document.querySelectorAll('.lb').forEach((b, i) => b.classList.toggle('ac', i === n))
+  updateLayerButtons()
+}
+
+function updateLayerButtons() {
+  lyrVisBtn.classList.toggle('on', layers[activeLayer].v)
+  lyrLockBtn.classList.toggle('on', !layers[activeLayer].locked)
+  lyrLockBtn.textContent = layers[activeLayer].locked ? '🔒' : '🔓'
+  lyrVisBtn.textContent = layers[activeLayer].v ? '👁' : '☒'
+}
+
+function toggleActiveLayerVis() {
+  layers[activeLayer].v = !layers[activeLayer].v
+  updateLayerButtons()
+  queueSave()
+}
+
+function toggleActiveLayerLock() {
+  layers[activeLayer].locked = !layers[activeLayer].locked
+  updateLayerButtons()
+  queueSave()
+}
+
+function allStrokes() {
+  return layers.flatMap((l, li) => l.strokes.map(s => ({ layer: li, stroke: s })))
+}
+
+function queueSave() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => saveState(true), 250)
+}
+
+function undo() {
+  if (curStroke) {
+    curStroke = null
+    calcWidth.lastPos = null
+    calcWidth.lastT = null
+    return
+  }
+  if (layers[activeLayer].strokes.length) {
+    redoStack.push({ stroke: layers[activeLayer].strokes.pop(), layer: activeLayer })
+    queueSave()
+    return
+  }
+  for (let i = layers.length - 1; i >= 0; i--) {
+    if (i === activeLayer) continue
+    const l = layers[i]
+    if (l.strokes.length) {
+      redoStack.push({ stroke: l.strokes.pop(), layer: i })
+      queueSave()
+      return
+    }
+  }
+}
+
+function redo() {
+  const item = redoStack.pop()
+  if (!item) return
+  const li = Math.max(0, Math.min(layers.length - 1, item.layer))
+  layers[li].strokes.push(item.stroke)
+  queueSave()
+}
+
+function clearAll() {
+  layers.forEach(l => l.strokes = [])
+  curStroke = null
+  grabbing = false
+  grabbedIds.clear()
+  twoActive = false
+  particles = []
+  trail = []
+  redoStack = []
+  queueSave()
+}
+
+function saveJSON() {
+  return JSON.stringify({
+    v: 1,
+    layers,
+    curColor,
+    brushSz,
+    activeLayer,
+    showBg,
+    smoothPasses,
+    currentBrush,
+    shapeAssist,
+    touchMode
+  })
+}
+
+function saveState(silent) {
+  try {
+    localStorage.setItem('handdraw-pro-state', saveJSON())
+    if (!silent) flashBadge('SAVED')
+  } catch (e) {
+    if (!silent) flashBadge('SAVE ERR')
+  }
+}
+
+function loadState(silent) {
+  try {
+    const raw = localStorage.getItem('handdraw-pro-state')
+    if (!raw) {
+      if (!silent) flashBadge('NO SAVE')
+      return false
+    }
+    const data = JSON.parse(raw)
+    if (data && Array.isArray(data.layers)) {
+      for (let i = 0; i < layers.length; i++) {
+        if (data.layers[i]) {
+          layers[i].strokes = data.layers[i].strokes || []
+          layers[i].v = data.layers[i].v !== false
+          layers[i].locked = !!data.layers[i].locked
+        }
+      }
+      curColor = data.curColor || curColor
+      brushSz = data.brushSz || brushSz
+      activeLayer = Math.max(0, Math.min(2, data.activeLayer || 0))
+      showBg = data.showBg !== false
+      smoothPasses = Number.isFinite(data.smoothPasses) ? data.smoothPasses : smoothPasses
+      currentBrush = data.currentBrush || currentBrush
+      shapeAssist = data.shapeAssist !== false
+      touchMode = !!data.touchMode
+      document.getElementById('bgbtn').classList.toggle('on', showBg)
+      document.getElementById('touchBtn').classList.toggle('on', touchMode)
+      document.getElementById('stab').value = String(smoothPasses)
+      shapeBtn.classList.toggle('on', shapeAssist)
+      document.querySelectorAll('.sw').forEach(sw => sw.classList.toggle('ac', sw.dataset.col === curColor))
+      setBrush(currentBrush)
+      setSz(brushSz, ['sz4', 'sz8', 'sz14', 'sz22'][[4,8,14,22].indexOf(brushSz)] || 'sz4')
+      setLyr(activeLayer)
+      updateLayerButtons()
+      if (!silent) flashBadge('LOADED')
+      return true
+    }
+  } catch (e) {
+    if (!silent) flashBadge('LOAD ERR')
+  }
+  return false
+}
+
+let flashTimer = null
+function flashBadge(txt) {
+  badgeEl.textContent = txt
+  badgeEl.className = 'badge bg'
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => { flashTimer = null; setBadge() }, 900)
+}
+
+function d2(a, b) { return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 }
+function dist(a, b) { return Math.sqrt(d2(a, b)) }
+function toC(lm) { return { x: (1 - lm.x) * W, y: lm.y * H, z: lm.z || 0 } }
+function fUp(lm, tip, pip) { return lm[tip].y < lm[pip].y }
+
+function smoothLM(lm, hi) {
+  const h = lmHist[hi]
+  h.push(lm)
+  if (h.length > SMOOTH_N) h.shift()
+  const n = h.length
+  return lm.map((_, i) => ({
+    x: h.reduce((s, f) => s + f[i].x, 0) / n,
+    y: h.reduce((s, f) => s + f[i].y, 0) / n,
+    z: h.reduce((s, f) => s + (f[i].z || 0), 0) / n
+  }))
+}
+
+function gesture(lm) {
+  if (dist(lm[4], lm[8]) < 0.055) return 'grab'
+  const i = fUp(lm, 8, 6), m = fUp(lm, 12, 10), r = fUp(lm, 16, 14), p = fUp(lm, 20, 18)
+  if (!i && !m && !r && !p) return 'fist'
+  if (i && m && !r && !p) return 'erase'
+  if (i && !m && !r && !p) return 'draw'
+  return 'idle'
+}
+
+function calcWidth(pos, base, z) {
+  const now = performance.now()
+  let w = base
+  if (calcWidth.lastPos && calcWidth.lastT) {
+    const dt = Math.max(now - calcWidth.lastT, 1)
+    const spd = dist(calcWidth.lastPos, pos) / dt
+    const vf = Math.max(0.35, Math.min(1.9, 0.85 / (spd * 0.45 + 0.45)))
+    const zf = Math.max(0.65, Math.min(1.35, 1 - z * 2.5))
+    w = base * vf * zf
+  }
+  calcWidth.lastPos = { ...pos }
+  calcWidth.lastT = now
+  return w
+}
+calcWidth.lastPos = null
+calcWidth.lastT = null
+
+function chaikin(pts, passes = 2) {
+  let p = pts
+  for (let pass = 0; pass < passes; pass++) {
+    if (p.length < 3) break
+    const s = [p[0]]
+    for (let i = 0; i < p.length - 1; i++) {
+      const a = p[i], b = p[i + 1]
+      s.push({ x: a.x * .75 + b.x * .25, y: a.y * .75 + b.y * .25, w: (a.w + b.w) / 2, t: a.t })
+      s.push({ x: a.x * .25 + b.x * .75, y: a.y * .25 + b.y * .75, w: (a.w + b.w) / 2, t: a.t })
+    }
+    s.push(p[p.length - 1])
+    p = s
+  }
+  return p
+}
+
+function rdp(points, eps) {
+  if (points.length < 3) return points
+  let dmax = 0, idx = 0
+  const a = points[0], b = points[points.length - 1]
+  const denom = Math.hypot(b.x - a.x, b.y - a.y) || 1
+  for (let i = 1; i < points.length - 1; i++) {
+    const p = points[i]
+    const d = Math.abs((b.y - a.y) * p.x - (b.x - a.x) * p.y + b.x * a.y - b.y * a.x) / denom
+    if (d > dmax) { idx = i; dmax = d }
+  }
+  if (dmax > eps) {
+    const l1 = rdp(points.slice(0, idx + 1), eps)
+    const l2 = rdp(points.slice(idx), eps)
+    return l1.slice(0, -1).concat(l2)
+  }
+  return [a, b]
+}
+
+function avg(arr) { return arr.reduce((a, b) => a + b, 0) / Math.max(arr.length, 1) }
+
+function bbox(pts) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const p of pts) {
+    if (p.x < minX) minX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.x > maxX) maxX = p.x
+    if (p.y > maxY) maxY = p.y
+  }
+  return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 }
+}
+
+function detectShape(pts) {
+  if (!pts || pts.length < 6) return null
+  const b = bbox(pts)
+  const diag = Math.hypot(b.w, b.h) || 1
+  if (diag < 20) return null
+
+  const startEnd = dist(pts[0], pts[pts.length - 1]) / diag
+  const path = pts.slice(1).reduce((s, p, i) => s + dist(p, pts[i]), 0)
+  const chord = dist(pts[0], pts[pts.length - 1]) || 1
+  const lineRatio = path / chord
+  const wAvg = avg(pts.map(p => p.w || brushSz))
+  const dx = b.maxX - b.minX, dy = b.maxY - b.minY
+  const aspect = dx > dy ? dx / Math.max(dy, 1) : dy / Math.max(dx, 1)
+
+  // --- LINE: fairly straight, open stroke ---
+  const lineErr = (() => {
+    const a = pts[0], c = pts[pts.length - 1]
+    const vx = c.x - a.x, vy = c.y - a.y
+    const denom = Math.hypot(vx, vy) || 1
+    return pts.reduce((s, p) => s + Math.abs(vy * p.x - vx * p.y + c.x * a.y - c.y * a.x) / denom, 0) / pts.length
+  })()
+
+  if (lineRatio < 1.7 && lineErr < diag * 0.13 && startEnd > 0.25) {
+    return { type: 'line', a: pts[0], b: pts[pts.length - 1], w: wAvg }
+  }
+
+  // Closed shapes: stroke must roughly return to start
+  if (startEnd > 0.55) return null
+
+  // --- CIRCLE: uniform distance from centroid ---
+  const cx = avg(pts.map(p => p.x)), cy = avg(pts.map(p => p.y))
+  const dists = pts.map(p => Math.hypot(p.x - cx, p.y - cy))
+  const rAvg = avg(dists)
+  const rVar = Math.sqrt(avg(dists.map(d => (d - rAvg) ** 2))) / (rAvg || 1)
+
+  if (rVar < 0.38 && aspect < 2.2) {
+    return { type: 'circle', cx, cy, r: rAvg, w: wAvg }
+  }
+
+  // --- POLYGON: simplify and count corners ---
+  const simple = rdp(pts, Math.max(6, diag * 0.06))
+  const nc = simple.length
+
+  if (b.w > 15 && b.h > 15) {
+    // Triangle: 3 corners
+    if (nc >= 3 && nc <= 5) {
+      // Pick best 3 corners via large-epsilon RDP
+      const tri = rdp(pts, Math.max(10, diag * 0.10))
+      const corners = tri.slice(0, 3).map(p => ({ x: p.x, y: p.y }))
+      if (corners.length === 3) return { type: 'triangle', corners, w: wAvg }
+    }
+    // Rectangle: 4+ corners
+    if (nc >= 4 && nc <= 9) {
+      return { type: 'rect', box: b, w: wAvg }
+    }
+  }
+
+  return null
+}
+
+function makeShapeStroke(shape, col, layer, brush) {
+  const pts = []
+  const w = shape.w || brushSz
+  const now = performance.now()
+  if (shape.type === 'line') {
+    const steps = Math.max(12, Math.floor(dist(shape.a, shape.b) / 5))
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps
+      pts.push({ x: shape.a.x + (shape.b.x - shape.a.x) * t, y: shape.a.y + (shape.b.y - shape.a.y) * t, w, t: now + i })
+    }
+  } else if (shape.type === 'circle') {
+    const steps = 64
+    for (let i = 0; i <= steps; i++) {
+      const a = (Math.PI * 2 * i) / steps
+      pts.push({ x: shape.cx + Math.cos(a) * shape.r, y: shape.cy + Math.sin(a) * shape.r, w, t: now + i })
+    }
+    pts.push({ x: shape.cx + shape.r, y: shape.cy, w, t: now + steps + 1 })
+  } else if (shape.type === 'rect') {
+    const b = shape.box
+    const corners = [
+      { x: b.minX, y: b.minY },
+      { x: b.maxX, y: b.minY },
+      { x: b.maxX, y: b.maxY },
+      { x: b.minX, y: b.maxY },
+      { x: b.minX, y: b.minY }
+    ]
+    let t = now
+    for (let i = 0; i < corners.length - 1; i++) {
+      const a = corners[i], c = corners[i + 1]
+      const steps = 16
+      for (let j = 0; j <= steps; j++) {
+        const k = j / steps
+        pts.push({ x: a.x + (c.x - a.x) * k, y: a.y + (c.y - a.y) * k, w, t: t++ })
+      }
+    }
+  } else if (shape.type === 'triangle') {
+    const c = shape.corners
+    const loop = [c[0], c[1], c[2], c[0]]
+    let t = now
+    for (let i = 0; i < loop.length - 1; i++) {
+      const a = loop[i], bb = loop[i + 1]
+      const steps = Math.max(8, Math.floor(dist(a, bb) / 5))
+      for (let j = 0; j <= steps; j++) {
+        const k = j / steps
+        pts.push({ x: a.x + (bb.x - a.x) * k, y: a.y + (bb.y - a.y) * k, w, t: t++ })
+      }
+    }
+  }
+  return { id: idCtr++, col, layer, brush, pts }
+}
+
+function finalize(smooth) {
+  if (!curStroke) return
+  if (curStroke.pts.length > 1) {
+    let stroke = curStroke
+    const rawPts = stroke.pts.map(p => ({ ...p }))
+    if (smooth) stroke.pts = chaikin(stroke.pts, smoothPasses)
+    if (shapeAssist) {
+      const shape = detectShape(rawPts)
+      if (shape) {
+        stroke = makeShapeStroke(shape, stroke.col, stroke.layer, stroke.brush)
+      }
+    }
+    layers[stroke.layer].strokes.push(stroke)
+    redoStack = []
+    queueSave()
+  }
+  curStroke = null
+}
+
+function emitParts(x, y, col, n = 10) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI * 2 * i / n + Math.random() * .5
+    const sp = 2 + Math.random() * 4
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, dec: .034 + Math.random() * .03, sz: brushSz * .4 + Math.random() * brushSz * .6, col })
+  }
+}
+
+function tickParts() {
+  for (const p of particles) {
+    p.x += p.vx
+    p.y += p.vy
+    p.vx *= .91
+    p.vy *= .91
+    p.life -= p.dec
+  }
+  particles = particles.filter(p => p.life > 0)
+}
+
+function doReplay() {
+  const all = layers.flatMap((l, li) => l.strokes.filter(s => s.pts.length > 1 && s.pts[0].t != null).map(s => ({ layer: li, ...s })))
+  if (!all.length) return
+  const minT = Math.min(...all.map(s => s.pts[0].t))
+  repAll = all.map(s => ({
+    id: s.id,
+    layer: s.layer,
+    col: s.col,
+    brush: s.brush || 'ink',
+    pts: s.pts.map(p => ({ x: p.x, y: p.y, w: p.w, t: p.t - minT }))
+  }))
+  repSaved = layers.map(l => l.strokes.slice())
+  layers.forEach(l => l.strokes = [])
+  repStart = performance.now()
+  repMode = true
+  repindEl.classList.add('on')
+}
+
+function tickReplay() {
+  if (!repMode) return
+  const el = (performance.now() - repStart) * 1.6
+  for (const rs of repAll) {
+    let s = layers[rs.layer].strokes.find(x => x.id === rs.id)
+    if (!s && rs.pts.length > 0 && rs.pts[0].t <= el) {
+      s = { id: rs.id, col: rs.col, layer: rs.layer, brush: rs.brush || 'ink', pts: [] }
+      layers[rs.layer].strokes.push(s)
+    }
+    if (s) {
+      const toAdd = rs.pts.slice(s.pts.length).filter(p => p.t <= el)
+      s.pts.push(...toAdd)
+    }
+  }
+  const maxT = repAll.length ? Math.max(...repAll.flatMap(s => s.pts.map(p => p.t))) : 0
+  if (el > maxT + 800) {
+    repMode = false
+    repindEl.classList.remove('on')
+    layers.forEach((l, i) => l.strokes = repSaved[i])
+  }
+}
+
+function savePNG() {
+  const oc = document.createElement('canvas')
+  oc.width = W
+  oc.height = H
+  const oc2 = oc.getContext('2d')
+  oc2.fillStyle = '#09090d'
+  oc2.fillRect(0, 0, W, H)
+  if (showBg && vid.readyState >= 2) {
+    oc2.save()
+    oc2.scale(-1, 1)
+    oc2.translate(-W, 0)
+    oc2.drawImage(vid, 0, 0, W, H)
+    oc2.restore()
+    oc2.fillStyle = 'rgba(0,0,0,.2)'
+    oc2.fillRect(0, 0, W, H)
+  }
+  for (const l of layers) if (l.v) for (const s of l.strokes) drawVar(oc2, s.pts, s.col, false, undefined, s.brush || 'ink')
+  if (curStroke && curStroke.pts.length > 0) drawVar(oc2, curStroke.pts, curStroke.col, false, undefined, curStroke.brush || 'ink')
+  oc2.fillStyle = 'rgba(255,255,255,0.2)'
+  oc2.font = '12px Segoe UI'
+  oc2.textAlign = 'right'
+  oc2.fillText('© Mustafa Faham 2026', W - 10, H - 10)
+  const a = document.createElement('a')
+  a.href = oc.toDataURL('image/png')
+  a.download = 'handdraw.png'
+  a.click()
+}
+
+function drawVar(c, pts, col, glow, forceWidth, brushType) {
+  if (!pts || !pts.length) return
+  c.save()
+  const brush = brushType || currentBrush
+  if (glow || brush === 'glow') {
+    c.shadowColor = col
+    c.shadowBlur = 16
+  } else {
+    c.shadowBlur = 0
+  }
+  c.fillStyle = col
+  if (pts.length === 1) {
+    c.beginPath()
+    c.arc(pts[0].x, pts[0].y, (pts[0].w || brushSz) / 2, 0, Math.PI * 2)
+    c.fill()
+    c.restore()
+    return
+  }
+  if (brush === 'marker') {
+    c.globalAlpha = 0.95
+  }
+  const capW = (p) => brush === 'marker' ? brushSz * 0.95 : (forceWidth || p.w || brushSz) / 2
+  // Start cap
+  const f = pts[0]
+  c.beginPath()
+  c.arc(f.x, f.y, capW(f), 0, Math.PI * 2)
+  c.fill()
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p = pts[i], q = pts[i + 1]
+    const dx = q.x - p.x, dy = q.y - p.y
+    const len = Math.sqrt(dx * dx + dy * dy)
+    if (len < 0.4) continue
+    const nx = -dy / len, ny = dx / len
+    const r1 = (forceWidth || p.w || brushSz) / 2
+    const r2 = (forceWidth || q.w || brushSz) / 2
+    const w1 = brush === 'marker' ? brushSz * 0.95 : r1
+    const w2 = brush === 'marker' ? brushSz * 0.95 : r2
+    c.beginPath()
+    c.moveTo(p.x + nx * w1, p.y + ny * w1)
+    c.lineTo(q.x + nx * w2, q.y + ny * w2)
+    c.lineTo(q.x - nx * w2, q.y - ny * w2)
+    c.lineTo(p.x - nx * w1, p.y - ny * w1)
+    c.closePath()
+    c.fill()
+  }
+  // End cap
+  const l = pts[pts.length - 1]
+  c.beginPath()
+  c.arc(l.x, l.y, capW(l), 0, Math.PI * 2)
+  c.fill()
+  c.restore()
+}
+
+function drawHand(lm) {
+  ctx.save()
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'
+  ctx.lineWidth = 1.1
+  for (const [a, b] of CONN) {
+    const pa = toC(lm[a]), pb = toC(lm[b])
+    ctx.beginPath()
+    ctx.moveTo(pa.x, pa.y)
+    ctx.lineTo(pb.x, pb.y)
+    ctx.stroke()
+  }
+  for (let i = 0; i < 21; i++) {
+    const p = toC(lm[i])
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, TIPS.has(i) ? 4 : 2.5, 0, Math.PI * 2)
+    ctx.fillStyle = TIPS.has(i) ? 'rgba(255,255,255,.82)' : 'rgba(255,255,255,.38)'
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+function drawCursor(lm) {
+  const tip = toC(lm[8]), thm = toC(lm[4]), mid = toC(lm[12])
+  if (mode === 'draw' || mode === 'touch') {
+    const now = Date.now()
+    trail = trail.filter(p => now - p.t < 380)
+    for (let i = 0; i < trail.length; i++) {
+      const age = (now - trail[i].t) / 380
+      ctx.save()
+      ctx.globalAlpha = (1 - age) * .38
+      ctx.fillStyle = curColor
+      ctx.beginPath()
+      ctx.arc(trail[i].x, trail[i].y, (brushSz * .5) * (1 - age * .6), 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+    ctx.save()
+    ctx.strokeStyle = curColor
+    ctx.lineWidth = 2
+    ctx.shadowColor = curColor
+    ctx.shadowBlur = 14
+    ctx.beginPath()
+    ctx.arc(tip.x, tip.y, brushSz / 2 + 4, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  } else if (mode === 'erase' && erasePos) {
+    ctx.save()
+    ctx.strokeStyle = 'rgba(255,80,80,.7)'
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([4, 4])
+    ctx.beginPath()
+    ctx.arc(erasePos.x, erasePos.y, brushSz * 4, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  } else if (mode === 'grab') {
+    const cx = (tip.x + thm.x) / 2, cy = (tip.y + thm.y) / 2, has = grabbedIds.size > 0
+    ctx.save()
+    ctx.beginPath()
+    ctx.moveTo(thm.x, thm.y)
+    ctx.lineTo(tip.x, tip.y)
+    ctx.strokeStyle = has ? 'rgba(240,168,40,.65)' : 'rgba(255,255,255,.28)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(cx, cy, 15, 0, Math.PI * 2)
+    ctx.strokeStyle = has ? '#f0a828' : 'rgba(255,255,255,.32)'
+    ctx.lineWidth = 2
+    if (has) {
+      ctx.shadowColor = '#f0a828'
+      ctx.shadowBlur = 18
+    }
+    ctx.stroke()
+    if (!has) {
+      ctx.setLineDash([4, 6])
+      ctx.strokeStyle = 'rgba(255,255,255,.06)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(cx, cy, Math.min(W, H) * .11, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+  if (fistT) {
+    const prog = Math.min(1, (performance.now() - fistT) / 900)
+    const p = toC(lm[0])
+    ctx.save()
+    ctx.strokeStyle = '#ff5858'
+    ctx.lineWidth = 3
+    ctx.shadowColor = '#ff5858'
+    ctx.shadowBlur = 10
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, 22, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2)
+    ctx.stroke()
+    ctx.globalAlpha = .12
+    ctx.fillStyle = '#ff5858'
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, 22, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
+function eraseAt(x, y) {
+  const r2 = (brushSz * 4) ** 2
+  for (const l of layers) {
+    if (l.locked) continue
+    l.strokes = l.strokes.filter(s => !s.pts.some(p => d2(p, { x, y }) < r2))
+  }
+  queueSave()
+}
+
+function process(lm0, lm1, n) {
+  const g = gesture(lm0)
+  const tip = toC(lm0[8]), thm = toC(lm0[4]), mid = toC(lm0[12])
+  const pinch = { x: (tip.x + thm.x) / 2, y: (tip.y + thm.y) / 2 }
+  if (g === 'fist') {
+    if (!fistT) fistT = performance.now()
+    else if (performance.now() - fistT > 900) { undo(); fistT = null }
+  } else {
+    fistT = null
+  }
+  if (layers[activeLayer].locked && g === 'draw') {
+    mode = 'locked'
+    setBadge()
+    finalize(false)
+    grabbing = false
+    grabbedIds.clear()
+    twoActive = false
+    return
+  }
+  mode = (g === 'fist') ? 'idle' : g
+  setBadge()
+  if (mode === 'draw') {
+    grabbing = false
+    grabbedIds.clear()
+    erasePos = null
+    if (prevMode !== 'draw') {
+      emitParts(tip.x, tip.y, curColor)
+      calcWidth.lastPos = null
+      calcWidth.lastT = null
+    }
+    const w = calcWidth(tip, brushSz, lm0[8].z || 0)
+    if (!curStroke) {
+      calcWidth.lastPos = null
+      calcWidth.lastT = null
+      curStroke = { id: idCtr++, col: curColor, layer: activeLayer, brush: currentBrush, pts: [{ ...tip, w, t: performance.now() }] }
+    } else {
+      const last = curStroke.pts[curStroke.pts.length - 1]
+      if (dist(last, tip) > 3) curStroke.pts.push({ ...tip, w, t: performance.now() })
+    }
+    trail.push({ ...tip, t: Date.now() })
+  } else if (mode === 'erase') {
+    calcWidth.lastPos = null
+    calcWidth.lastT = null
+    finalize(false)
+    grabbing = false
+    grabbedIds.clear()
+    twoActive = false
+    erasePos = { x: (tip.x + mid.x) / 2, y: (tip.y + mid.y) / 2 }
+    eraseAt(erasePos.x, erasePos.y)
+  } else if (mode === 'grab') {
+    calcWidth.lastPos = null
+    calcWidth.lastT = null
+    erasePos = null
+    finalize(false)
+    if (n >= 2 && lm1 && gesture(lm1) === 'grab') {
+      const q = { x: (toC(lm1[4]).x + toC(lm1[8]).x) / 2, y: (toC(lm1[4]).y + toC(lm1[8]).y) / 2 }
+      const cd = dist(pinch, q), ca = Math.atan2(q.y - pinch.y, q.x - pinch.x)
+      if (!twoActive) {
+        twoActive = true
+        twoInitDist = cd
+        twoInitAngle = ca
+        twoSnaps.clear()
+        for (const s of allStrokes()) {
+          if (grabbedIds.has(s.stroke.id)) twoSnaps.set(s.stroke.id, s.stroke.pts.map(p => ({ x: p.x, y: p.y })))
+        }
+      } else {
+        const scale = twoInitDist > 0 ? cd / twoInitDist : 1
+        const dA = ca - twoInitAngle
+        const ctr = { x: (pinch.x + q.x) / 2, y: (pinch.y + q.y) / 2 }
+        for (const s of allStrokes()) {
+          if (!grabbedIds.has(s.stroke.id)) continue
+          const snap = twoSnaps.get(s.stroke.id)
+          if (!snap) continue
+          for (let i = 0; i < s.stroke.pts.length; i++) {
+            const ox = snap[i].x - ctr.x, oy = snap[i].y - ctr.y
+            const r = Math.sqrt(ox * ox + oy * oy) * scale
+            const a = Math.atan2(oy, ox) + dA
+            s.stroke.pts[i].x = ctr.x + r * Math.cos(a)
+            s.stroke.pts[i].y = ctr.y + r * Math.sin(a)
+          }
+        }
+      }
+    } else {
+      twoActive = false
+      if (!grabbing) {
+        grabbing = true
+        grabCenter = { ...pinch }
+        grabbedIds.clear()
+        grabOffsets.clear()
+        const r2 = (Math.min(W, H) * .11) ** 2
+        for (const s of allStrokes()) {
+          if (s.stroke.pts.some(p => d2(p, pinch) < r2)) {
+            grabbedIds.add(s.stroke.id)
+            grabOffsets.set(s.stroke.id, s.stroke.pts.map(p => ({ dx: p.x - pinch.x, dy: p.y - pinch.y })))
+          }
+        }
+      } else if (grabbedIds.size > 0) {
+        for (const s of allStrokes()) {
+          if (!grabbedIds.has(s.stroke.id)) continue
+          const off = grabOffsets.get(s.stroke.id)
+          s.stroke.pts.forEach((p, i) => { p.x = pinch.x + off[i].dx; p.y = pinch.y + off[i].dy })
+        }
+        grabCenter = { ...pinch }
+      } else {
+        grabCenter = { ...pinch }
+      }
+    }
+  } else {
+    calcWidth.lastPos = null
+    calcWidth.lastT = null
+    erasePos = null
+    grabbing = false
+    grabbedIds.clear()
+    twoActive = false
+    finalize(true)
+  }
+  prevMode = mode
+  updateGestureHint()
+}
+
+function updateGestureHint() {
+  const txt = mode === 'draw' ? '✏️ draw' : mode === 'erase' ? '🧽 erase' : mode === 'grab' ? '🤏 grab' : mode === 'locked' ? '🔒 locked' : touchMode ? '☝ touch' : 'IDLE'
+  hcntEl.textContent = latestCount === 0 ? 'no hand' : latestCount === 1 ? '1 hand' : '2 hands'
+  badgeEl.textContent = txt.toUpperCase()
+  badgeEl.className = 'badge ' + (BADGE_CLASS[mode] || 'bi')
+}
+
+function render(lm0, lm1) {
+  ctx.clearRect(0, 0, W, H)
+  if (showBg && cameraReady && vid.readyState >= 2) {
+    ctx.save()
+    ctx.scale(-1, 1)
+    ctx.translate(-W, 0)
+    ctx.drawImage(vid, 0, 0, W, H)
+    ctx.restore()
+    ctx.fillStyle = 'rgba(0,0,0,.2)'
+    ctx.fillRect(0, 0, W, H)
+  } else {
+    ctx.fillStyle = '#0d0d12'
+    ctx.fillRect(0, 0, W, H)
+  }
+  for (const l of layers) {
+    if (!l.v) continue
+    for (const s of l.strokes) drawVar(ctx, s.pts, s.col, grabbedIds.has(s.id), undefined, s.brush || 'ink')
+  }
+  if (curStroke && curStroke.pts.length > 0) drawVar(ctx, curStroke.pts, curStroke.col, true, undefined, curStroke.brush || currentBrush)
+  tickParts()
+  for (const p of particles) {
+    ctx.save()
+    ctx.globalAlpha = p.life * .75
+    ctx.fillStyle = p.col
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, p.sz * p.life, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+  tickReplay()
+  if (lm0) { drawHand(lm0); drawCursor(lm0) }
+  if (lm1) drawHand(lm1)
+}
+
+function onResults(res) {
+  const lms = res.multiHandLandmarks || []
+  latestCount = lms.length
+  hcntEl.textContent = latestCount === 0 ? 'no hand' : latestCount === 1 ? '1 hand' : '2 hands'
+  if (latestCount < 2) lmHist[1] = []
+  if (latestCount === 0) lmHist[0] = []
+  latestLm0 = lms[0] ? smoothLM(lms[0], 0) : null
+  latestLm1 = lms[1] ? smoothLM(lms[1], 1) : null
+  if (!repMode && !touchMode) {
+    if (latestCount === 0) {
+      mode = 'idle'
+      setBadge()
+      finalize(true)
+      fistT = null
+      grabbing = false
+      trail = []
+      erasePos = null
+    } else {
+      process(latestLm0, latestLm1, latestCount)
+    }
+  }
+}
+
+function startCamera() {
+  ltxtEl.textContent = 'Starting camera…'
+  navigator.mediaDevices.getUserMedia({
+    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+  }).then(stream => {
+    cameraReady = true
+    vid.srcObject = stream
+    return vid.play()
+  }).then(() => {
+    loadEl.classList.add('gone')
+    cameraLoopRunning = true
+    if (touchMode) mode = 'touch'
+    ltxtEl.textContent = 'Loading model…'
+  }).catch(() => {
+    cameraReady = false
+    touchMode = true
+    touchBtn.classList.add('on')
+    mode = 'touch'
+    setBadge()
+    ltxtEl.textContent = 'Camera denied. Touch mode on.'
+    setTimeout(() => loadEl.classList.add('gone'), 700)
+  })
+}
+
+function initTouchInput() {
+  const pointer = new Map()
+  const getPos = e => {
+    const r = cv.getBoundingClientRect()
+    return { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) }
+  }
+  const startStroke = e => {
+    if (!touchMode && cameraReady) return
+    e.preventDefault()
+    const p = getPos(e)
+    pointer.set(e.pointerId || 1, p)
+    mode = 'touch'
+    setBadge()
+    curStroke = { id: idCtr++, col: curColor, layer: activeLayer, brush: currentBrush, pts: [{ ...p, w: brushSz, t: performance.now() }] }
+    trail.push({ ...p, t: Date.now() })
+    emitParts(p.x, p.y, curColor, 6)
+  }
+  const moveStroke = e => {
+    if (!curStroke || (!touchMode && cameraReady)) return
+    e.preventDefault()
+    const p = getPos(e)
+    pointer.set(e.pointerId || 1, p)
+    const last = curStroke.pts[curStroke.pts.length - 1]
+    if (dist(last, p) > 2) curStroke.pts.push({ ...p, w: brushSz, t: performance.now() })
+    trail.push({ ...p, t: Date.now() })
+  }
+  const endStroke = e => {
+    if (!touchMode && cameraReady) return
+    e.preventDefault()
+    pointer.delete(e.pointerId || 1)
+    finalize(true)
+  }
+  cv.addEventListener('pointerdown', startStroke, { passive: false })
+  cv.addEventListener('pointermove', moveStroke, { passive: false })
+  cv.addEventListener('pointerup', endStroke, { passive: false })
+  cv.addEventListener('pointercancel', endStroke, { passive: false })
+  cv.addEventListener('pointerleave', endStroke, { passive: false })
+}
+
+function toggleRecording() {
+  if (recorder && recorder.state === 'recording') {
+    recorder.stop()
+    recBtn.classList.remove('on')
+    return
+  }
+  if (!cv.captureStream || typeof MediaRecorder === 'undefined') {
+    flashBadge('NO REC')
+    return
+  }
+  recStream = cv.captureStream(30)
+  recChunks = []
+  try {
+    recorder = new MediaRecorder(recStream, { mimeType: 'video/webm;codecs=vp8' })
+  } catch (e) {
+    recorder = new MediaRecorder(recStream)
+  }
+  recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data) }
+  recorder.onstop = () => {
+    const blob = new Blob(recChunks, { type: recorder.mimeType || 'video/webm' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'handdraw.webm'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    recBtn.classList.remove('on')
+  }
+  recorder.start()
+  recBtn.classList.add('on')
+}
+
+function mainLoop() {
+  render(latestLm0, latestLm1)
+  requestAnimationFrame(mainLoop)
+}
+
+async function sendFrameWithTimeout(hands, image) {
+  lastSendAt = performance.now()
+  return Promise.race([
+    hands.send({ image }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('MediaPipe frame timeout')), sendTimeoutMs))
+  ])
+}
+
+async function initHands() {
+  ltxtEl.textContent = 'Loading model…'
+  const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` })
+  hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.55 })
+  hands.onResults(onResults)
+  try {
+    await hands.initialize()
+    ltxtEl.textContent = 'Starting camera…'
+    await startCamera()
+    const loop = async () => {
+      if (cameraReady && vid.readyState >= 2) {
+        if (!busy) {
+          busy = true
+          try {
+            await sendFrameWithTimeout(hands, vid)
+          } catch (e) {
+            console.warn(e)
+          } finally {
+            busy = false
+          }
+        }
+      }
+      requestAnimationFrame(loop)
+    }
+    requestAnimationFrame(loop)
+    setInterval(() => {
+      if (busy && performance.now() - lastSendAt > sendTimeoutMs + 500) {
+        busy = false
+      }
+    }, 500)
+  } catch (e) {
+    ltxtEl.textContent = 'Hand model failed'
+    touchMode = true
+    touchBtn.classList.add('on')
+    mode = 'touch'
+    setBadge()
+    loadEl.classList.add('gone')
+  }
+}
+
+function bindUI() {
+  setBrush('ink')
+  setLyr(0)
+  updateLayerButtons()
+  document.getElementById('stab').addEventListener('input', e => {
+    smoothPasses = parseInt(e.target.value, 10) || 0
+    queueSave()
+  })
+  document.getElementById('stab').value = String(smoothPasses)
+  document.querySelectorAll('.sw').forEach(sw => sw.classList.toggle('ac', sw.dataset.col === curColor))
+  loadState(true)
+  shapeBtn.classList.toggle('on', shapeAssist)
+  updateLayerButtons()
+}
+
+bindUI()
+initTouchInput()
+mainLoop()
+initHands()
+setBadge()
+
+</script>
+</body>
+</html>
